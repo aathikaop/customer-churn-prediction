@@ -1,0 +1,28 @@
+# Virtual environment
+.venv/
+
+# PyCharm
+.idea/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Testing
+.pytest_cache/
+
+# Environment variables
+.env
+
+# MLflow local tracking
+mlruns/
+
+# Logs
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
