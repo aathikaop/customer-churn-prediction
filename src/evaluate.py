@@ -1,6 +1,8 @@
 import os
 import joblib
 import pandas as pd
+import mlflow
+import mlflow.sklearn
 
 from sklearn.metrics import (
     accuracy_score,
@@ -46,6 +48,7 @@ model_names = [
     "xgboost"
 ]
 
+mlflow.set_experiment("customer_churn_prediction")
 
 # Evaluate Models
 
@@ -117,6 +120,17 @@ for model_name in model_names:
     print(f"F1 Score : {f1:.4f}")
     print(f"ROC-AUC  : {roc_auc:.4f}")
 
+    with mlflow.start_run(run_name=model_name):
+        mlflow.log_param("model_name", model_name)
+        mlflow.log_metrics({
+            "accuracy": accuracy,
+            "precision": precision,
+            "recall": recall,
+            "f1_score": f1,
+            "roc_auc": roc_auc
+        })
+        mlflow.log_artifact(model_path)
+
 
 # Create Results DataFrame
 
@@ -126,6 +140,19 @@ results_df = results_df.sort_values(
     by="f1_score",
     ascending=False
 )
+
+best_model_name = results_df.iloc[0]["model"]
+print(f"\nBest baseline model (by F1): {best_model_name}")
+
+best_model_path = os.path.join(MODEL_DIR, f"{best_model_name}.pkl")
+best_pipeline = joblib.load(best_model_path)
+
+with mlflow.start_run(run_name=f"{best_model_name}_best_baseline"):
+    mlflow.log_param("model_name", best_model_name)
+    mlflow.log_metrics(results_df.iloc[0][
+        ["accuracy", "precision", "recall", "f1_score", "roc_auc"]
+    ].to_dict())
+    mlflow.sklearn.log_model(best_pipeline, artifact_path="model",serialization_format="pickle")
 
 
 # Save Evaluation Results

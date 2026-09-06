@@ -1,6 +1,8 @@
 import os
 import joblib
 import pandas as pd
+import mlflow
+import mlflow.sklearn
 
 from sklearn.metrics import (
     accuracy_score,
@@ -38,6 +40,7 @@ y_test = pd.read_csv(
 
 print(f"Test data loaded: {X_test.shape}")
 
+mlflow.set_experiment("customer_churn_prediction")
 
 # Load Tuned Model
 
@@ -100,3 +103,21 @@ print(f"Precision: {precision:.4f}")
 print(f"Recall   : {recall:.4f}")
 print(f"F1 Score : {f1:.4f}")
 print(f"ROC-AUC  : {roc_auc:.4f}")
+
+
+with mlflow.start_run(run_name="xgboost_tuned"):
+    mlflow.log_param("model_name", "xgboost_tuned")
+    mlflow.log_metrics({
+        "accuracy": accuracy,
+        "precision": precision,
+        "recall": recall,
+        "f1_score": f1,
+        "roc_auc": roc_auc
+    })
+    mlflow.log_artifact(MODEL_PATH)
+
+    mlflow.sklearn.log_model(
+        tuned_model,
+        artifact_path="model",
+        serialization_format="pickle"
+    )
