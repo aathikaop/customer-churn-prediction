@@ -8,6 +8,9 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException
 from .schemas import CustomerFeatures, PredictionResponse, HealthResponse
 
+import csv
+from datetime import datetime
+
 app = FastAPI(
     title="Customer Churn Prediction API",
     description="Predicts whether an e-commerce customer will churn.",
@@ -17,8 +20,11 @@ app = FastAPI(
 MODEL_PATH = "models/model.pkl"
 METADATA_PATH = "models/metadata.json"
 
+LOGS_PATH = "logs/predictions.csv"
+
 model = None
 model_metadata = {}
+
 
 
 @app.on_event("startup")
@@ -44,6 +50,18 @@ def health_check():
         model_version=str(model_metadata.get("version")) if model_metadata else None
     )
 
+def log_prediction(customer_data: dict, prediction: int, probability: float, risk: str):
+    os.makedirs("logs", exist_ok=True)
+    file_exists = os.path.exists(LOGS_PATH)
+
+    with open(LOGS_PATH, "a", newline="") as f:
+        writer = csv.writer(f)
+        if not file_exists:
+            header = ["timestamp"] + list(customer_data.keys()) + ["prediction", "probability", "risk_level"]
+            writer.writerow(header)
+        row = [datetime.now().isoformat()] + list(customer_data.values()) + [prediction, round(probability, 4), risk]
+        writer.writerow(row)
+
 
 @app.post("/api/v1/predict", response_model=PredictionResponse)
 def predict(customer: CustomerFeatures):
@@ -64,6 +82,9 @@ def predict(customer: CustomerFeatures):
         risk = "Medium"
     else:
         risk = "Low"
+
+
+    log_prediction(customer.dict(), int(prediction), float(probability), risk)
 
     return PredictionResponse(
         churn_prediction=int(prediction),

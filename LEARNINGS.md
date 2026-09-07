@@ -1,4 +1,4 @@
-# Day 11: Project Planning & Setup
+# Day 1: Project Planning & Setup
 
 ## What was completed
 - Selected dataset: E-commerce Customer Behavior Dataset (Kaggle, by dhairyajeetsingh) for a customer churn prediction problem.
@@ -29,7 +29,7 @@
 
 ---
 
-# Day 12: Experimentation & Model Development
+# Day 2: Experimentation & Model Development
 
 ## What was completed
 - Performed EDA on the churn dataset.
@@ -64,7 +64,7 @@
 - Register the best model directly from the MLflow UI/API in Day 13 to avoid re-loading from local `.pkl` files.
 
 
-# Day 13: Model Registry & API Development
+# Day 3: Model Registry & API Development
 
 ## What was completed
 - Fixed model logging so both the best baseline model (auto-selected by comparing F1 scores) and the tuned XGBoost model were logged using `mlflow.sklearn.log_model()` (not just `log_artifact()`), making them registrable in MLflow.
@@ -107,3 +107,48 @@
 - Perform Postman testing alongside Swagger UI testing as part of the same development pass, rather than deferring it.
 - Consider dropping or re-encoding the low-importance `City`/`Country` features to reduce model dimensionality without hurting performance.
 - Automate the "promote production model to local file" step as part of a CI/CD pipeline trigger (Day 14) rather than a manual utility call.
+
+
+# Day 4: Containerization, CI/CD & Cloud Deployment
+
+## What was completed
+- Wrote a `Dockerfile` to containerize the FastAPI application, using `python:3.12-slim` as the base image.
+- Split dependencies into two scopes: the root `requirements.txt` (full environment, for anyone cloning the repo to reproduce training/experimentation) and a slim `api/requirements.txt` (only what the deployed API actually needs — pandas, numpy, scikit-learn, xgboost, joblib, fastapi, uvicorn, pydantic).
+- Installed `xgboost` with `--no-deps` in the Dockerfile to avoid pulling in a ~250MB unused NVIDIA CUDA/NCCL dependency, since the deployed model runs on CPU only.
+- Built and tested the Docker image locally (`docker build`, `docker run -p 8000:8080`), confirming the containerized API behaved identically to the local (non-Docker) version via Swagger UI.
+- Attempted to deploy to Google Cloud Run per the original plan, but hit a persistent Google Cloud billing verification failure (error code `OR_BACR2_59`) with both UPI and card payment methods — a known India-specific verification issue unrelated to the project setup itself.
+- **Pivoted to Render** as a substitute cloud deployment platform, given time constraints. Connected the GitHub repository, let Render auto-detect the Dockerfile, and deployed on Render's free tier.
+- Verified the live deployment (`https://customer-churn-prediction-svm4.onrender.com`) via Swagger UI — both `/health` and `/api/v1/predict` work identically to the local and Dockerized versions.
+- Wrote a test suite (`tests/test_preprocessing.py`, `tests/test_predict.py`, `tests/test_api.py`) covering the custom `FeatureEngineer` transformer, model loading/prediction, and both API endpoints (valid and invalid input).
+- Set up a GitHub Actions workflow (`.github/workflows/cicd.yml`) that runs the full test suite automatically on every push to `main`.
+- Confirmed the pipeline triggers correctly and passes (green checkmark) after pushing.
+
+## Key decisions made
+- Used two separate `requirements.txt` files (root vs. `api/`) to keep the training environment fully reproducible while keeping the deployed container lean and fast to build.
+- Chose to substitute Render for Google Cloud Run after multiple failed billing verification attempts (both UPI and card), rather than lose further time on a platform-level blocker unrelated to the actual MLOps work.
+- Used `TestClient(app)` as a context manager (`with TestClient(app) as client:`) in API tests, since FastAPI's startup event (model loading) only fires correctly within that context.
+
+## Problems encountered
+- Initial Docker builds timed out repeatedly downloading a ~250MB NVIDIA CUDA dependency pulled in transitively by `xgboost`, despite the model only running on CPU.
+- The full local `requirements.txt` (from `pip freeze`) included a Windows-only package (`pywin32`) that would have broken the Linux-based Docker build if left in.
+- Including the full `mlflow` package (with its Flask/matplotlib/pyarrow/Docker-SDK dependency chain) in the API's Docker image caused excessive build times and image bloat, despite `api/main.py` never actually importing `mlflow`.
+- Google Cloud billing verification failed repeatedly with error `OR_BACR2_59` for both UPI autopay and card payment methods — appears to be an India-specific account verification issue, not a data-entry error.
+- `pytest` initially showed 2 failing API tests (`/health` returning "model_not_loaded", `/predict` returning 503) because `TestClient(app)` alone doesn't trigger FastAPI's startup event without being used as a context manager.
+
+## Solutions attempted
+- Installed `xgboost` separately with `pip install xgboost --no-deps` to skip its GPU-related dependency chain entirely.
+- Removed `pywin32` and created a minimal, service-scoped `api/requirements.txt` used only inside the Docker build, leaving the full `requirements.txt` untouched for local development reproducibility.
+- Increased pip's `--default-timeout` and `--retries` in the Dockerfile to handle slow/unstable network conditions during dependency downloads.
+- After repeated GCP billing failures, switched to Render, which required no card/billing verification for its free tier and deployed successfully on the first attempt.
+- Fixed failing API tests by wrapping `TestClient(app)` usage in a `with` block, ensuring the startup event (and model loading) fires before each test runs.
+
+## Lessons learned
+- Package installs inside a Docker container should be scoped specifically to what the running service needs — a "just reuse the dev requirements.txt" approach can silently drag in huge, irrelevant dependencies (GPU libraries, visualization tools, experiment-tracking servers) that only matter for local development or training, not serving.
+- Cloud billing/account verification can be a real, unpredictable blocker independent of technical skill — having a fallback deployment platform in mind (and being transparent about substituting one) is a practical, professional response rather than a shortcut.
+- FastAPI's `TestClient` requires explicit context-manager usage to correctly simulate the app's startup/shutdown lifecycle — a subtlety that's easy to miss and produces confusing failures if overlooked.
+- Render's built-in auto-deploy-on-push behavior effectively covers part of a CI/CD pipeline out of the box, but running tests via a separate GitHub Actions workflow is still valuable as an independent quality gate before/alongside deployment.
+
+## Improvements for future iterations
+- Revisit Google Cloud Run deployment once the billing verification issue is resolved, to fully match the original project specification.
+- Extend the GitHub Actions workflow to build and push the Docker image as part of the pipeline (not just run tests), and explore linking a failed test run to blocking Render's deploy.
+- Add more edge-case tests (e.g., extreme but valid values, all-categorical-boundary inputs) to the test suite for more thorough coverage.
