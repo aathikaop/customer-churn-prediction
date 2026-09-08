@@ -8,7 +8,7 @@ Predict which customers are likely to churn so the business can proactively targ
 
 ## Dataset
 
-[E-commerce Customer Behavior Dataset](https://www.kaggle.com/datasets/dhairyajeetsingh/ecommerce-customer-behavior-dataset) (Kaggle) — 10,000 customers, 24 features covering demographics, engagement, purchase behavior, and support interactions.
+[E-commerce Customer Behavior Dataset](https://www.kaggle.com/datasets/dhairyajeetsingh/ecommerce-customer-behavior-dataset) (Kaggle) — 50,000 customers, 25 features covering demographics, engagement, purchase behavior, and support interactions.
 
 ## Architecture
 Dataset → Git + DVC → Data Preprocessing → Feature Engineering → Model Training
