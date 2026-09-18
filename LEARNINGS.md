@@ -8,7 +8,7 @@
 - Initialized Git repository and made the first commit.
 - Initialized DVC and tracked the raw dataset (data/raw/ecommerce_customer_churn_dataset.csv).
 - Created an initial architecture diagram outlining the end-to-end pipeline (Data → Preprocessing → Feature Engineering → Model Training → MLflow → API → Docker → CI/CD → Cloud Run → Monitoring).
-- Created a project backlog listing tasks for Days 12–15.
+- Created a project backlog listing tasks for Days 1–5.
 
 ## Key decisions made
 - Picked F1 Score over accuracy/ROC-AUC as the north-star metric due to class imbalance in the churn label.
@@ -73,7 +73,7 @@
 - Created two versions: Version 1 (best baseline, xgboost) and Version 2 (tuned xgboost).
 - Promoted Version 2 to production using MLflow's alias system (`@production`), since this MLflow version replaced the older Stages concept with Aliases.
 - Added a `promote_production_model()` utility function to `src/utils.py` that pulls whichever model is tagged `production` from the registry and saves it locally as `models/model.pkl` + `models/metadata.json`, matching the project's expected folder structure.
-- Ran a feature importance analysis on the final model — confirmed the engineered features (`High_Cart_Abandonment`, `Is_Recently_Active`) rank highly, validating Day 12's feature engineering, while noticing `City`/`Country` one-hot encoding contributes very little despite adding ~50+ low-value columns.
+- Ran a feature importance analysis on the final model — confirmed the engineered features (`High_Cart_Abandonment`, `Is_Recently_Active`) rank highly, validating Day 2's feature engineering, while noticing `City`/`Country` one-hot encoding contributes very little despite adding ~50+ low-value columns.
 - Built the FastAPI application (`api/main.py`, `api/schemas.py`) with:
   - `GET /health` — reports model load status and version.
   - `POST /api/v1/predict` — accepts customer features, returns churn prediction, probability, and a risk label (Low/Medium/High).
@@ -106,7 +106,7 @@
 ## Improvements for future iterations
 - Perform Postman testing alongside Swagger UI testing as part of the same development pass, rather than deferring it.
 - Consider dropping or re-encoding the low-importance `City`/`Country` features to reduce model dimensionality without hurting performance.
-- Automate the "promote production model to local file" step as part of a CI/CD pipeline trigger (Day 14) rather than a manual utility call.
+- Automate the "promote production model to local file" step as part of a CI/CD pipeline trigger (Day 4) rather than a manual utility call.
 
 
 # Day 4: Containerization, CI/CD & Cloud Deployment
